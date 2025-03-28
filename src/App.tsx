@@ -6,9 +6,10 @@ import tickets from "./resources/tickets";
 import users from "./resources/users";
 import reservations from "./resources/reservations";
 import { dataProvider } from "./dataProvider"; // Utiliser le dataProvider personnalisé
+import CustomLayout from "./Layout";
 
 const App = () => (
-  <Admin dataProvider={dataProvider} authProvider={authProvider}>
+  <Admin dataProvider={dataProvider} authProvider={authProvider} layout={CustomLayout}>
     <Resource name="events" {...events} />
     <Resource name="tickets" {...tickets} />
     <Resource name="users" {...users} />
