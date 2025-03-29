@@ -7,9 +7,11 @@ import users from "./resources/users";
 import reservations from "./resources/reservations";
 import { dataProvider } from "./dataProvider"; // Utiliser le dataProvider personnalisé
 import CustomLayout from "./Layout";
+import Dashboard from "./components/Dashboard";
 
 const App = () => (
-  <Admin dataProvider={dataProvider} authProvider={authProvider} layout={CustomLayout}>
+  <Admin dataProvider={dataProvider} authProvider={authProvider} layout={CustomLayout} dashboard={Dashboard}>
+    <Resource name="dashboard" list={Dashboard} />
     <Resource name="events" {...events} />
     <Resource name="tickets" {...tickets} />
     <Resource name="users" {...users} />

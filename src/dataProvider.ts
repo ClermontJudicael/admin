@@ -102,39 +102,39 @@ const httpClient = (url: string, options: fetchUtils.Options = {}) => {
 };
 
 
+const checkToken = async (): Promise<boolean> => {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    return false;
+  }
+  
+  try {
+    const response = await fetch(`${apiUrl}/admin/check-auth`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token }),
+    });
+    
+    if (!response.ok) {
+      // Nettoyer le localStorage si le token n'est plus valide
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      localStorage.removeItem('username');
+      localStorage.removeItem('auth');
+      return false;
+    }
+    
+    const data = await response.json();
+    return data.valid && data.user && data.user.role === 'admin';
+  } catch (error) {
+    console.error('Erreur lors de la vérification du token:', error);
+    return false;
+  }
+};
   // Fonction pour vérifier la validité du token
-  const checkToken = async (): Promise<boolean> => {
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-      return false;
-    }
-    
-    try {
-      const response = await fetch(`${apiUrl}/admin/check-auth`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token }),
-      });
-      
-      if (!response.ok) {
-        // Nettoyer le localStorage si le token n'est plus valide
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-        localStorage.removeItem('username');
-        localStorage.removeItem('auth');
-        return false;
-      }
-      
-      const data = await response.json();
-      return data.valid && data.user && data.user.role === 'admin';
-    } catch (error) {
-      console.error('Erreur lors de la vérification du token:', error);
-      return false;
-    }
-  };
 
   const baseDataProvider = simpleRestProvider(apiUrl, httpClient);
 
