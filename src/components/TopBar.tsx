@@ -41,16 +41,16 @@ const TopBar = () => {
   userMenu={<CustomUserMenu />}
   sx={{
     boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-    backgroundColor: '#007BFF',
     color: 'inherit',
     '& .RaAppBar-toolbar': {
       paddingLeft: '1.5rem',
       paddingRight: '1.5rem',
       // Ajoutez ceci pour enlever le padding top si nécessaire
-      paddingTop: 0, // Assurez-vous que le padding top est à 0
+      paddingTop: '0.5rem', // Assurez-vous que le padding top est à 0
+      paddingBottom: '0.5rem',
     },
     // Assurez-vous qu'il n'y a pas de margin top
-    marginTop: 0, // Assurez-vous que le margin top est à 0
+    marginBottom: 0, // Assurez-vous que le margin top est à 0
   }}
 >
 
