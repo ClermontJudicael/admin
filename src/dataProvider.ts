@@ -1,226 +1,124 @@
-/** 
-import simpleRestProvider from 'ra-data-simple-rest';
 import { fetchUtils } from 'react-admin';
+import { stringify } from 'query-string';
 
-// L'URL de ton backend
-const apiUrl = 'http://localhost:5000';
-
-// Fonction de connexion pour obtenir un JWT
-const login = async (username: string, password: string): Promise<boolean> => {
-  try {
-    const response = await fetch(`${apiUrl}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: username,
-        password: password,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('Erreur de connexion:', response.status, response.statusText);
-      return false;
-    }
-
-    const data = await response.json();
-    if (data.token) {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('role', data.role);
-      console.log('Connexion réussie, rôle:', data.role);
-      return true;
-    } else {
-      console.error('Token manquant dans la réponse');
-      return false;
-    }
-  } catch (error) {
-    console.error('Erreur lors de la connexion:', error);
-    return false;
-  }
-};
-
-// Utiliser le client HTTP de react-admin avec notre logique d'authentification
-const httpClient = (url: string, options: fetchUtils.Options = {}) => {
-  // Récupérer le token à chaque requête
-  const token = localStorage.getItem('token');
-  
-  if (!options.headers) {
-    options.headers = new Headers({ Accept: 'application/json' });
-  }
-  
-  if (token) {
-    (options.headers as Headers).set('Authorization', `Bearer ${token}`);
-  }
-  
-  return fetchUtils.fetchJson(url, options)
-    .catch((error) => {
-      console.error('Erreur API:', error);
-      
-      // Si erreur d'authentification, supprimer le token et rejeter
-      if (error.status === 401 || error.status === 403) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-      }
-      
-      throw error;
-    });
-};
-
-// Utiliser le client HTTP personnalisé avec le simpleRestProvider
-const dataProvider = simpleRestProvider(apiUrl, httpClient);
-
-export { login, dataProvider };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-----------------------------------------------------------------
-*/
-import simpleRestProvider from 'ra-data-simple-rest';
-import { fetchUtils } from 'react-admin';
-
-// L'URL de l'API admin
 const apiUrl = 'http://localhost:5000/api';
 
-// Fonction de connexion pour obtenir un JWT
-const login = async (username: string, password: string): Promise<boolean> => {
-  try {
-    const response = await fetch(`${apiUrl}/admin/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: username, // Utiliser email au lieu de username pour la nouvelle API
-        password: password,
-      }),
+const httpClient = async (url: string, options: fetchUtils.Options = {}) => {
+    const token = localStorage.getItem('token');
+    const headers = new Headers({
+        Accept: 'application/json',
+        'Content-Type': options.headers?.get('Content-Type') || 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` })
     });
 
-    if (!response.ok) {
-      console.error('Erreur de connexion:', response.status, response.statusText);
-      return false;
-    }
+    try {
+        const response = await fetchUtils.fetchJson(url, {
+            ...options,
+            headers,
+        });
 
-    const data = await response.json();
-    if (data.token) {
-      // Stocker toutes les informations nécessaires
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('role', data.user.role);
-      localStorage.setItem('username', data.user.username);
-      localStorage.setItem('auth', JSON.stringify(data)); // Stocker l'objet complet
-      
-      console.log('Connexion réussie, rôle:', data.user.role);
-      
-      // Vérifier que l'utilisateur est un admin
-      if (data.user.role !== 'admin') {
-        console.error('Accès non autorisé: rôle non-admin');
-        // Nettoyer le localStorage si l'utilisateur n'est pas admin
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-        localStorage.removeItem('username');
-        localStorage.removeItem('auth');
-        return false;
-      }
-      
-      return true;
-    } else {
-      console.error('Token manquant dans la réponse');
-      return false;
-    }
-  } catch (error) {
-    console.error('Erreur lors de la connexion:', error);
-    return false;
-  }
-};
-
-// Utiliser le client HTTP de react-admin avec notre logique d'authentification
-const httpClient = (url: string, options: fetchUtils.Options = {}) => {
-  // Récupérer le token à chaque requête
-  const token = localStorage.getItem('token');
-  
-  if (!options.headers) {
-    options.headers = new Headers({ Accept: 'application/json' });
-  }
-  
-  if (token) {
-    (options.headers as Headers).set('Authorization', `Bearer ${token}`);
-  }
-  
-  return fetchUtils.fetchJson(url, options)
-    .catch((error) => {
-      console.error('Erreur API:', error);
-      
-      // Si erreur d'authentification, supprimer toutes les données de session
-      if (error.status === 401 || error.status === 403) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-        localStorage.removeItem('username');
-        localStorage.removeItem('auth');
-        
-        // Rediriger vers la page de connexion si nécessaire
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+        // Normalisation de la réponse
+        if (response.json.data !== undefined) {
+            return response; // Déjà au bon format
         }
-      }
-      
-      throw error;
-    });
-};
+        return {
+            ...response,
+            json: { data: response.json }
+        };
 
-// Fonction pour vérifier la validité du token
-const checkToken = async (): Promise<boolean> => {
-  const token = localStorage.getItem('token');
-  
-  if (!token) {
-    return false;
-  }
-  
-  try {
-    const response = await fetch(`${apiUrl}/admin/check-auth`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ token }),
-    });
-    
-    if (!response.ok) {
-      // Nettoyer le localStorage si le token n'est plus valide
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
-      localStorage.removeItem('username');
-      localStorage.removeItem('auth');
-      return false;
+    } catch (error) {
+        console.error('API Error:', error);
+        if (error.status === 401) {
+            localStorage.removeItem('token');
+            window.location.reload();
+        }
+        throw error;
     }
-    
-    const data = await response.json();
-    return data.valid && data.user && data.user.role === 'admin';
-  } catch (error) {
-    console.error('Erreur lors de la vérification du token:', error);
-    return false;
-  }
 };
 
-// Utiliser le client HTTP personnalisé avec le simpleRestProvider
-const dataProvider = simpleRestProvider(apiUrl, httpClient);
+export const dataProvider = {
+    getList: async (resource, params) => {
+        const { page, perPage } = params.pagination;
+        const { field, order } = params.sort;
+        
+        const query = {
+            sort: JSON.stringify([field, order]),
+            range: JSON.stringify([(page - 1) * perPage, page * perPage - 1]),
+            filter: JSON.stringify(params.filter),
+        };
+        const url = `${apiUrl}/${resource}?${stringify(query)}`;
 
-export { login, checkToken, dataProvider }; 
+        const { json, headers } = await httpClient(url);
+        
+        // Vérification du format
+        if (!Array.isArray(json.data)) {
+            throw new Error(`Format de réponse invalide. Attendu: { data: [...] }, Reçu: ${JSON.stringify(json)}`);
+        }
+
+        return {
+            data: json.data,
+            total: parseInt(headers.get('content-range')?.split('/').pop() || json.data.length, 10)
+        };
+    },
+
+    getOne: async (resource, params) => {
+        const { json } = await httpClient(`${apiUrl}/${resource}/${params.id}`);
+        return { data: json.data };
+    },
+
+    create: async (resource, params) => {
+        const { json } = await httpClient(`${apiUrl}/${resource}`, {
+            method: 'POST',
+            body: JSON.stringify(params.data),
+        });
+        
+        if (!json.data?.id) {
+            throw new Error('La réponse de création ne contient pas d\'ID');
+        }
+        
+        return { 
+            data: { 
+                ...json.data, 
+                id: json.data.id.toString() 
+            } 
+        };
+    },
+
+    update: async (resource, params) => {
+        const { json } = await httpClient(`${apiUrl}/${resource}/${params.id}`, {
+            method: 'PUT',
+            body: JSON.stringify(params.data),
+        });
+        return { data: json.data };
+    },
+
+    delete: async (resource, params) => {
+        const { json } = await httpClient(`${apiUrl}/${resource}/${params.id}`, {
+            method: 'DELETE',
+        });
+        return { data: json.data };
+    },
+
+    updateStatus: async (resource, params) => {
+        const { json } = await httpClient(`${apiUrl}/${resource}/${params.id}/status`, {
+            method: 'PUT',
+            body: JSON.stringify({ status: params.data.status }),
+        });
+        return { data: json.data };
+    },
+
+    uploadImage: async (resource, params) => {
+        const formData = new FormData();
+        formData.append('image', params.data.file);
+        
+        const { json } = await httpClient(`${apiUrl}/${resource}/${params.id}/image`, {
+            method: 'POST',
+            body: formData,
+            headers: new Headers({
+                // Pas de Content-Type pour FormData, le navigateur le fera automatiquement
+                Authorization: `Bearer ${localStorage.getItem('token')}`
+            })
+        });
+        return { data: json.data };
+    }
+};
