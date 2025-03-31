@@ -1,4 +1,3 @@
-// src/components/Dashboard.tsx
 import { Card, CardContent, Typography } from '@mui/material';
 import { Title, useGetList } from 'react-admin';
 import {
@@ -23,14 +22,23 @@ const Dashboard = () => {
     pagination: { page: 1, perPage: 1000 }
   });
 
+  // Statistiques des réservations confirmées
+  const { data: confirmedReservations, isLoading: reservationsLoading } = useGetList('reservations/confirmed', {
+    pagination: { page: 1, perPage: 1000 }
+  });
+
+  // Logs pour débogage
+    console.log('Confirmed Reservations:', confirmedReservations);
+    console.log('Confirmed Reservations Length:', confirmedReservations?.length);
+
   // Données pour le graphique
   const chartData = [
     { name: 'Utilisateurs', count: users?.length || 0 },
     { name: 'Événements', count: events?.length || 0 },
-    // Ajoutez d'autres données selon vos besoins
+    { name: 'Réservations Confirmées', count: confirmedReservations?.length || 0 },
   ];
 
-  if (usersLoading || eventsLoading) return <div>Chargement...</div>;
+  if (usersLoading || eventsLoading || reservationsLoading) return <div>Chargement...</div>;
 
   return (
     <div style={{ padding: '20px' }}>
@@ -57,6 +65,18 @@ const Dashboard = () => {
             </Typography>
             <Typography variant="h5" component="div">
               {events?.length || 0}
+            </Typography>
+          </CardContent>
+        </Card>
+
+        {/* Carte Statistiques Réservations Confirmées */}
+        <Card sx={{ flex: 1 }}>
+          <CardContent>
+            <Typography color="textSecondary" gutterBottom>
+              Réservations Confirmées
+            </Typography>
+            <Typography variant="h5" component="div">
+              {confirmedReservations?.length || 0}
             </Typography>
           </CardContent>
         </Card>
