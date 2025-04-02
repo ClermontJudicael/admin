@@ -134,34 +134,92 @@ try {
   return false;
 }
 };
-// Fonction pour vérifier la validité du token
-
+// DataProvider de base
 const baseDataProvider = simpleRestProvider(apiUrl, httpClient);
+
+// DataProvider personnalisé avec gestion améliorée
 const dataProvider = {
-...baseDataProvider,
-update: (resource, params) => {
-  // Cas spécial pour l'annulation de réservation
-  if (resource === 'reservations' && params.data.status === 'canceled') {
-    return httpClient(`${apiUrl}/${resource}/${params.id}/cancel`, {
-      method: 'PUT',
-      body: JSON.stringify(params.data),
-    }).then(({ json }) => ({ data: json }))
+  ...baseDataProvider,
+  
+  getList: (resource, params) => {
+    return baseDataProvider.getList(resource, params)
       .catch(error => {
-        throw new Error(error.message);
+        console.error(`Erreur lors de la récupération des ${resource}:`, error);
+        throw error;
+      });
+  },
+
+  getOne: (resource, params) => {
+    return baseDataProvider.getOne(resource, params)
+      .catch(error => {
+        console.error(`Erreur lors de la récupération de ${resource}/${params.id}:`, error);
+        throw error;
+      });
+  },
+
+  update: async (resource, params) => {
+    // Cas spécial pour l'annulation de réservation
+    if (resource === 'reservations' && params.data.status === 'canceled') {
+      try {
+        const { json } = await httpClient(`${apiUrl}/${resource}/${params.id}/cancel`, {
+          method: 'PUT',
+          body: JSON.stringify(params.data),
+        });
+        return { data: { id: params.id, ...json } };
+      } catch (error) {
+        console.error('Erreur lors de l\'annulation:', error);
+        throw error;
+      }
+    }
+    
+    // Comportement normal pour les autres updates
+    try {
+      const url = `${apiUrl}/${resource}/${params.id}`;
+      console.log('Tentative de mise à jour sur:', url); // Debug
+      
+      const { json } = await httpClient(url, {
+        method: 'PUT',
+        body: JSON.stringify(params.data),
+      });
+      
+      return { 
+        data: { 
+          id: params.id, 
+          ...(json.data || json) 
+        } 
+      };
+    } catch (error) {
+      console.error('Erreur détaillée lors de la mise à jour:', {
+        resource,
+        id: params.id,
+        error: error.message,
+        status: error.status,
+      });
+      
+      if (error.status === 404) {
+        throw new Error(`La ressource ${resource}/${params.id} n'existe pas ou l'endpoint n'est pas configuré`);
+      }
+      
+      throw error;
+    }
+  },
+
+  create: (resource, params) => {
+    return baseDataProvider.create(resource, params)
+      .catch(error => {
+        console.error(`Erreur lors de la création de ${resource}:`, error);
+        throw error;
+      });
+  },
+
+  delete: (resource, params) => {
+    return baseDataProvider.delete(resource, params)
+      .catch(error => {
+        console.error(`Erreur lors de la suppression de ${resource}/${params.id}:`, error);
+        throw error;
       });
   }
-  
-  // Comportement normal pour les autres updates
-  return baseDataProvider.update(resource, params)
-    .catch(error => {
-      throw new Error(error.message);
-    });
-},
-delete: (resource, params) => {
-  return baseDataProvider.delete(resource, params)
-    .catch(error => {
-      throw new Error(error.message);
-    });
-},
 };
+
+
 export { login, checkToken, dataProvider }; 

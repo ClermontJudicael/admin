@@ -21,6 +21,7 @@ const UserFilter = (props) => (
 );
 
 export const UserList = () => {
+  
   const notify = useNotify();
   
   const handleDeleteError = (error: any) => {

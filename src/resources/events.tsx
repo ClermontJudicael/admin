@@ -29,6 +29,7 @@ const EventFilter = (props) => (
         { id: 'theatre', name: 'Théâtre' },
         { id: 'exposition', name: 'Exposition' },
         { id: 'conference', name: 'Conférence' },
+        {id: 'Musique', name: 'Musique'},
       ]} 
     />
   </Filter>
@@ -165,6 +166,7 @@ export const EventCreate = () => (
           { id: 'theatre', name: 'Théâtre' },
           { id: 'exposition', name: 'Exposition' },
           { id: 'conference', name: 'Conférence' },
+          { id: 'Musique', name: 'Musique'},
         ]} 
         required 
       />
@@ -201,6 +203,7 @@ export const EventEdit = () => (
           { id: 'theatre', name: 'Théâtre' },
           { id: 'exposition', name: 'Exposition' },
           { id: 'conference', name: 'Conférence' },
+          { id: 'Musique', name: 'Musique'},
         ]} 
         required 
       />
