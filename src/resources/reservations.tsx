@@ -6,6 +6,7 @@ import {
   useRefresh
 } from "react-admin";
 import CancelIcon from '@mui/icons-material/Cancel';
+import { useDataProvider } from 'react-admin'; // <-- Ajoutez cette ligne
 
 const ReservationFilter = (props) => (
   <Filter {...props}>
@@ -26,37 +27,42 @@ const CancelReservationButton = () => {
   const record = useRecordContext();
   const notify = useNotify();
   const refresh = useRefresh();
+  const dataProvider = useDataProvider();
 
   const handleClick = async () => {
     try {
-      const response = await fetch(`/reservations/${record.id}/cancel`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      if (!record) return;
+      
+      await dataProvider.update('reservations', {
+        id: record.id,
+        data: { 
+          status: 'canceled',
+          // Ajoutez ici d'autres champs nécessaires
+        },
+        previousData: record
       });
-
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-
+      
       notify('Réservation annulée avec succès', { type: 'success' });
       refresh();
     } catch (error) {
       notify(`Erreur lors de l'annulation: ${error.message}`, { type: 'error' });
+      console.error('Détails de l\'erreur:', error);
     }
   };
+
+  if (!record) return null;
 
   return (
     <Button 
       label="Annuler" 
       onClick={handleClick} 
-      disabled={record?.status === 'canceled'}
+      disabled={record.status === 'canceled'}
       startIcon={<CancelIcon />}
+      color="secondary"
     />
   );
 };
+
 
 export const ReservationList = () => (
   <List filters={<ReservationFilter />}>
