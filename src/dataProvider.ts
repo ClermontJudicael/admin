@@ -204,13 +204,28 @@ const dataProvider = {
     }
   },
 
-  create: (resource, params) => {
-    return baseDataProvider.create(resource, params)
-      .catch(error => {
+  create: async (resource, params) => {
+    try {
+        // Effectuer la requête POST pour créer une nouvelle ressource
+        const { json } = await httpClient(`${apiUrl}/${resource}`, {
+            method: 'POST',
+            body: JSON.stringify(params.data), // Envoyer les données de l'événement
+        });
+        
+        console.log('Response from create:', json);
+        
+        if (!json.data || !json.data.id) {
+            throw new Error('La réponse de l\'API ne contient pas de champ "id".');
+        }
+
+        // Retourner la réponse au format attendu par React Admin
+        return { data: json.data }; 
+    } catch (error) {
         console.error(`Erreur lors de la création de ${resource}:`, error);
-        throw error;
-      });
-  },
+        throw error; 
+    }
+},
+
 
   delete: (resource, params) => {
     return baseDataProvider.delete(resource, params)
