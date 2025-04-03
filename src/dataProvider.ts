@@ -141,7 +141,7 @@ const baseDataProvider = simpleRestProvider(apiUrl, httpClient);
 const dataProvider = {
   ...baseDataProvider,
   
-  getList: (resource, params) => {
+  getList: (resource, params) => {    
     return baseDataProvider.getList(resource, params)
       .catch(error => {
         console.error(`Erreur lors de la récupération des ${resource}:`, error);
@@ -206,34 +206,86 @@ const dataProvider = {
 
   create: async (resource, params) => {
     try {
-        // Effectuer la requête POST pour créer une nouvelle ressource
-        const { json } = await httpClient(`${apiUrl}/${resource}`, {
-            method: 'POST',
-            body: JSON.stringify(params.data), // Envoyer les données de l'événement
+      if (resource === 'events' && params.data.image) {
+        console.log("Fichier reçu dans create:", params.data.image);
+  
+        const formData = new FormData();
+  
+        // Ajout des autres champs
+        Object.keys(params.data).forEach(key => {
+          if (key !== 'image' && params.data[key] !== undefined) {
+            formData.append(key, params.data[key]);
+          }
         });
-        
-        console.log('Response from create:', json);
-        
-        if (!json.data || !json.data.id) {
-            throw new Error('La réponse de l\'API ne contient pas de champ "id".');
+  
+        // Vérification et ajout de l'image
+        if (params.data.image.rawFile instanceof File) {
+          console.log("Ajout du fichier dans FormData:", params.data.image.rawFile);
+          formData.append('image', params.data.image.rawFile, params.data.image.title || params.data.image.rawFile.name);
+        } else {
+          console.error("L'image reçue n'est pas un fichier valide !");
+          return Promise.reject(new Error("L'image n'est pas un fichier valide."));
         }
-
-        // Retourner la réponse au format attendu par React Admin
-        return { data: json.data }; 
+  
+        // Envoi de la requête
+        const response = await fetch(`${apiUrl}/${resource}`, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+  
+        const json = await response.json();
+        console.log("Réponse du backend :", json);
+  
+        // Assurer que json.data contient bien l'ID
+        if (!json.data && !json.data.id) {
+          throw new Error('La réponse de l\'API ne contient pas de champ "id".');
+        }
+  
+        return { data: json.data || json };  // Adapté si le backend ne renvoie pas { data: { id: ... }}
+      }
+  
+      // Comportement pour les autres ressources
+      const { json } = await httpClient(`${apiUrl}/${resource}`, {
+        method: 'POST',
+        body: JSON.stringify(params.data),
+        headers: { 'Content-Type': 'application/json' },
+      });
+  
+      return { data: json };
     } catch (error) {
-        console.error(`Erreur lors de la création de ${resource}:`, error);
-        throw error; 
+      console.error(`Erreur lors de la création de ${resource}:`, error);
+      throw error;
     }
+  },
+  
+
+
+delete: async (resource, params) => {
+  try {
+      // Effectuer la requête DELETE pour supprimer la ressource
+      const response = await httpClient(`${apiUrl}/${resource}/${params.id}`, {
+          method: 'DELETE',
+      });
+
+      // Vérifiez le code de statut de la réponse
+      if (response.status === 204) {
+          // Si la réponse est 204, cela signifie que la suppression a réussi
+          return { data: { id: params.id } }; // Retourner l'id de la ressource supprimée
+      }
+
+      // Si votre API renvoie un corps, vous pouvez le traiter ici
+      const json = await response.json();
+      console.log('Response from delete:', json);
+      return { data: json.data || { id: params.id } }; // Retourner l'id de la ressource supprimée
+  } catch (error) {
+      console.error(`Erreur lors de la suppression de ${resource}/${params.id}:`, error);
+      throw error; // Propager l'erreur pour que React Admin puisse la gérer
+  }
 },
 
-
-  delete: (resource, params) => {
-    return baseDataProvider.delete(resource, params)
-      .catch(error => {
-        console.error(`Erreur lors de la suppression de ${resource}/${params.id}:`, error);
-        throw error;
-      });
-  }
 };
 
 
