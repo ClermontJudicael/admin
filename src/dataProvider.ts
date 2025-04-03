@@ -59,46 +59,55 @@ const login = async (username: string, password: string): Promise<boolean> => {
 // Utiliser le client HTTP de react-admin avec notre logique d'authentification
 // Modifier la fonction httpClient pour mieux gérer les erreurs
 const httpClient = (url: string, options: fetchUtils.Options = {}) => {
-const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token');
 
-if (!options.headers) {
-  options.headers = new Headers({ Accept: 'application/json' });
-}
+  // Vérifie si les headers sont déjà définis, sinon on les initialise
+  if (!options.headers) {
+    options.headers = new Headers(); // Crée un nouvel objet Headers
+  }
 
-if (token) {
-  (options.headers as Headers).set('Authorization', `Bearer ${token}`);
-}
+  // Ajoute un en-tête Accept si non existant
+  if (!(options.headers instanceof Headers)) {
+    options.headers = new Headers(options.headers); // Convertit en Headers si ce n'est pas déjà le cas
+  }
 
-return fetchUtils.fetchJson(url, options)
-  .catch(async (error) => {
-    console.error('Erreur API:', error);
-    
-    // Récupérer le message d'erreur du body si disponible
-    let errorMessage = 'Erreur inconnue';
-    try {
-      const errorBody = await error.json();
-      errorMessage = errorBody.message || error.message;
-    } catch (e) {
-      errorMessage = error.message;
-    }
+  // Ajoute le token d'autorisation si disponible
+  if (token) {
+    options.headers.set('Authorization', `Bearer ${token}`);
+  } else {
+    console.warn('Aucun token trouvé, l\'authentification peut échouer.');
+  }
 
-    // Si erreur d'authentification, nettoyer le localStorage
-    if (error.status === 401 || error.status === 403) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
-      localStorage.removeItem('username');
-      localStorage.removeItem('auth');
-      
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+  return fetchUtils.fetchJson(url, options)
+    .catch(async (error) => {
+      console.error('Erreur API:', error);
+
+      // Récupérer le message d'erreur du body si disponible
+      let errorMessage = 'Erreur inconnue';
+      try {
+        const errorBody = await error.json();
+        errorMessage = errorBody.message || error.message;
+      } catch (e) {
+        errorMessage = error.message;
       }
-    }
 
-    // Créer une nouvelle erreur avec le message formaté
-    const formattedError = new Error(errorMessage);
-    (formattedError as any).status = error.status;
-    throw formattedError;
-  });
+      // Si erreur d'authentification, nettoyer le localStorage
+      if (error.status === 401 || error.status === 403) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        localStorage.removeItem('username');
+        localStorage.removeItem('auth');
+        
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+
+      // Créer une nouvelle erreur avec le message formaté
+      const formattedError = new Error(errorMessage);
+      (formattedError as any).status = error.status;
+      throw formattedError;
+    });
 };
 
 
@@ -206,61 +215,71 @@ const dataProvider = {
 
   create: async (resource, params) => {
     try {
-      if (resource === 'events' && params.data.image) {
-        console.log("Fichier reçu dans create:", params.data.image);
-  
-        const formData = new FormData();
-  
-        // Ajout des autres champs
-        Object.keys(params.data).forEach(key => {
-          if (key !== 'image' && params.data[key] !== undefined) {
-            formData.append(key, params.data[key]);
-          }
-        });
-  
-        // Vérification et ajout de l'image
-        if (params.data.image.rawFile instanceof File) {
-          console.log("Ajout du fichier dans FormData:", params.data.image.rawFile);
-          formData.append('image', params.data.image.rawFile, params.data.image.title || params.data.image.rawFile.name);
-        } else {
-          console.error("L'image reçue n'est pas un fichier valide !");
-          return Promise.reject(new Error("L'image n'est pas un fichier valide."));
+        if (resource === 'events' && params.data.image) {
+            console.log("Fichier reçu dans create:", params.data.image);
+
+            const formData = new FormData();
+
+            // Ajout des autres champs
+            Object.keys(params.data).forEach(key => {
+                if (key !== 'image' && params.data[key] !== undefined) {
+                    formData.append(key, params.data[key]);
+                }
+            });
+
+            // Vérification et ajout de l'image
+            if (params.data.image.rawFile instanceof File) {
+                console.log("Ajout du fichier dans FormData:", params.data.image.rawFile);
+                formData.append('image', params.data.image.rawFile, params.data.image.title || params.data.image.rawFile.name);
+            } else {
+                console.error("L'image reçue n'est pas un fichier valide !");
+                return Promise.reject(new Error("L'image n'est pas un fichier valide."));
+            }
+
+            // Envoi de la requête
+            const response = await fetch(`${apiUrl}/${resource}`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erreur HTTP: ${response.status}`);
+            }
+
+            const json = await response.json();
+            console.log("Réponse du backend :", json);
+
+            // Format de réponse standard pour React-Admin
+            return { 
+                data: { 
+                    id: json.data?.id || json.id, // Prendre l'ID soit de json.data soit directement de json
+                    ...(json.data || json) // Étendre avec toutes les données
+                } 
+            };
         }
-  
-        // Envoi de la requête
-        const response = await fetch(`${apiUrl}/${resource}`, {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
+
+        // Comportement pour les autres ressources
+        const { json } = await httpClient(`${apiUrl}/${resource}`, {
+            method: 'POST',
+            body: JSON.stringify(params.data),
+            headers: { 'Content-Type': 'application/json' },
         });
-  
-        const json = await response.json();
-        console.log("Réponse du backend :", json);
-  
-        // Assurer que json.data contient bien l'ID
-        if (!json.data && !json.data.id) {
-          throw new Error('La réponse de l\'API ne contient pas de champ "id".');
-        }
-  
-        return { data: json.data || json };  // Adapté si le backend ne renvoie pas { data: { id: ... }}
-      }
-  
-      // Comportement pour les autres ressources
-      const { json } = await httpClient(`${apiUrl}/${resource}`, {
-        method: 'POST',
-        body: JSON.stringify(params.data),
-        headers: { 'Content-Type': 'application/json' },
-      });
-  
-      return { data: json };
+
+        // Format de réponse standard pour React-Admin
+        return { 
+            data: { 
+                id: json.data?.id || json.id, // Prendre l'ID soit de json.data soit directement de json
+                ...(json.data || json) // Étendre avec toutes les données
+            } 
+        };
     } catch (error) {
-      console.error(`Erreur lors de la création de ${resource}:`, error);
-      throw error;
+        console.error(`Erreur lors de la création de ${resource}:`, error);
+        throw error;
     }
-  },
-  
+},
 
 
 delete: async (resource, params) => {
