@@ -14,6 +14,7 @@
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^6.4.0",
     "@mui/material": "^6.4.7",
+    "@mui/styles": "^6.4.10",
     "@tailwindcss/vite": "^4.0.17",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
